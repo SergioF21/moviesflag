@@ -3,16 +3,26 @@ import requests
 import json
 
 app = Flask(__name__)
-apikey = "<apikey>"
+apikey = "1ffc252e"
+
+countryFlags = {}
 
 def searchfilms(search_text):
-    url = "https://www.omdbapi.com/?s=" + search_text + "&apikey=" + apikey
+    url = "https://www.omdbapi.com/?s=" + search_text + "&page=1" + "&apikey=" + apikey
+    url2 = "https://www.omdbapi.com/?s=" + search_text + "&page=2" + "&apikey=" + apikey
+    url3 = "https://www.omdbapi.com/?s=" + search_text + "&page=3" + "&apikey=" + apikey
+    
     response = requests.get(url)
+    response2=requests.get(url2)
+    response3=requests.get(url3)
+    merch=[response,response2,response3]     
+
     if response.status_code == 200:
         return response.json()
     else:
         print("Failed to retrieve search results.")
         return None
+        
     
 def getmoviedetails(movie):
     url = "https://www.omdbapi.com/?i=" + movie["imdbID"] + "&apikey=" + apikey
@@ -24,13 +34,18 @@ def getmoviedetails(movie):
         return None
 
 def get_country_flag(fullname):
-
+    
+    if fullname in countryFlags:
+        return countryFlags[fullname]
+    
     url = f"https://restcountries.com/v3.1/name/{fullname}?fullText=true"
     response = requests.get(url)
+
     if response.status_code == 200:
         country_data = response.json()
         if country_data:
-            return country_data[0].get("flags", {}).get("svg", None)
+            countryFlags[fullname] = country_data[0].get("flags", {}).get("svg", None)
+            return countryFlags[fullname]
     print(f"Failed to retrieve flag for country code: {fullname}")
     return None
 
