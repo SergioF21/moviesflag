@@ -9,6 +9,8 @@
         .movie { display: flex; align-items: center; margin-bottom: 10px; }
         .movie img { width: 50px; height: auto; margin-right: 15px; }
         .movie-info { display: flex; flex-direction: column; }
+        .pagination {margin-top:20px;}
+        .pagination a {margin:0 5px; text-decoration: none; color: blue;}
     </style>
 </head>
 <body>
@@ -26,6 +28,18 @@
                 </div>
             </div>
         {% endfor %}
+    </div>
+    <!-- Paginación -->
+    <div class="pagination">
+        {% if current_page > 1 %}
+            <a href="?filter={{ request.args.get('filter', '') }}&page={{ current_page - 1 }}">Previous</a>
+        {% endif %}
+        
+        <span>Page {{ current_page }} of {{ total_pages }}</span>
+        
+        {% if current_page < total_pages %}
+            <a href="?filter={{ request.args.get('filter', '') }}&page={{ current_page + 1 }}">Next</a>
+        {% endif %}
     </div>
 </body>
 </html>

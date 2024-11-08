@@ -7,16 +7,15 @@ apikey = "1ffc252e"
 
 countryFlags = {}
 
-def searchfilms(search_text):
-    url = "https://www.omdbapi.com/?s=" + search_text + "&page=1" + "&apikey=" + apikey
-    url2 = "https://www.omdbapi.com/?s=" + search_text + "&page=2" + "&apikey=" + apikey
-    url3 = "https://www.omdbapi.com/?s=" + search_text + "&page=3" + "&apikey=" + apikey
+country_code_to_name = {
+    "USA":"United States",
+    "UK":"United Kingdom"
+}
+
+def searchfilms(search_text, page=1):
+    url = f"https://www.omdbapi.com/?s={search_text}&page={page}&apikey={apikey}"
     
     response = requests.get(url)
-    response2=requests.get(url2)
-    response3=requests.get(url3)
-    merch=[response,response2,response3]     
-
     if response.status_code == 200:
         return response.json()
     else:
@@ -34,7 +33,10 @@ def getmoviedetails(movie):
         return None
 
 def get_country_flag(fullname):
-    
+
+    if fullname in country_code_to_name:
+        fullname = country_code_to_name[fullname]
+
     if fullname in countryFlags:
         return countryFlags[fullname]
     
@@ -49,37 +51,48 @@ def get_country_flag(fullname):
     print(f"Failed to retrieve flag for country code: {fullname}")
     return None
 
-def merge_data_with_flags(filter):
-    filmssearch = searchfilms(filter)
+def merge_data_with_flags(filter, page):
+    filmssearch = searchfilms(filter,page)
+    if not filmssearch or "Search" not in filmssearch:
+        return[] 
     moviesdetailswithflags = []
     for movie in filmssearch["Search"]:
          moviedetails = getmoviedetails(movie)
-         countriesNames = moviedetails["Country"].split(",")
-         countries = []
-         for country in countriesNames:
-            countrywithflag = {
-                "name": country.strip(),
-                "flag": get_country_flag(country.strip())
+         if moviedetails:
+            countriesNames = moviedetails["Country"].split(",")
+            countries = []
+            for country in countriesNames:
+                countrywithflag = {
+                    "name": country.strip(),
+                    "flag": get_country_flag(country.strip())
+                }
+                countries.append(countrywithflag)
+            moviewithflags = {
+                "title": moviedetails["Title"],
+                "year": moviedetails["Year"],
+                "countries": countries
             }
-            countries.append(countrywithflag)
-         moviewithflags = {
-            "title": moviedetails["Title"],
-            "year": moviedetails["Year"],
-            "countries": countries
-         }
-         moviesdetailswithflags.append(moviewithflags)
+            moviesdetailswithflags.append(moviewithflags)
 
     return moviesdetailswithflags
 
 @app.route("/")
 def index():
     filter = request.args.get("filter", "").upper()
-    return render_template("index.html", movies = merge_data_with_flags(filter))
+    page = int(request.args.get("page", 1))
+    movies = merge_data_with_flags(filter,page)
+    total_result = 50
+    results_per_page = 10
+    total_pages = (total_result//results_per_page)+(1 if total_result%results_per_page else 0)
+    return render_template("index.html", movies=movies, total_pages=total_pages, current_page=page)
 
 @app.route("/api/movies")
 def api_movies():
     filter = request.args.get("filter", "")
-    return jsonify(merge_data_with_flags(filter))    
+    page=int(request.args.get("page",1))
+
+    movies = merge_data_with_flags(filter,page)
+    return jsonify({"movies":movies})    
 
 if __name__ == "__main__":
     app.run(debug=True)
