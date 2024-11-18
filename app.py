@@ -63,7 +63,6 @@ def getmoviedetails(movie):
                 #print(f"Countries for movie {moviedetails['Title']}: {countries}")
 
                 for country in countries:
-                    flag_url = get_country_flag(country)
                     cursor.execute("INSERT OR IGNORE INTO MovieCountry (movie_id, country_name) VALUES (?, ?)", (imdbID, country))
                     print(f"Inserted country '{country}' for movie '{imdbID}'")
                 conn.commit()
