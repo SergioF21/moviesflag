@@ -63,6 +63,7 @@ def getmoviedetails(movie):
                 #print(f"Countries for movie {moviedetails['Title']}: {countries}")
 
                 for country in countries:
+                    flag_url = get_country_flag(country)
                     cursor.execute("INSERT OR IGNORE INTO MovieCountry (movie_id, country_name) VALUES (?, ?)", (imdbID, country))
                     print(f"Inserted country '{country}' for movie '{imdbID}'")
                 conn.commit()
@@ -108,9 +109,11 @@ def merge_data_with_flags(filter, page):
             countriesNames = moviedetails["Country"].split(",")
             countries = []
             for country in countriesNames:
+                c_fullname=country.strip()
+                flag_url = get_country_flag(c_fullname)
                 countrywithflag = {
-                    "name" : country.strip(),
-                    "flag" : get_country_flag(country.strip())
+                    "name" : c_fullname,
+                    "flag" : flag_url
                 }
                 countries.append(countrywithflag)
             with sqlite3.connect("cache.db") as conn:
