@@ -47,29 +47,35 @@ def searchfilms(search_text, page=1):
 def getmoviedetails(movie):
     imdbID = movie["imdbID"]
     with sqlite3.connect("cache.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT details FROM Movie WHERE imdbID=?", (imdbID,))
-        cached_movie = cursor.fetchone()
-        if cached_movie:
-            return json.loads(cached_movie[0])
-        else: 
-            url = "https://www.omdbapi.com/?i=" + movie["imdbID"] + "&apikey=" + apikey
-            response = requests.get(url)
-            if response.status_code == 200:
-                moviedetails = response.json()
-                cursor.execute("INSERT OR REPLACE INTO Movie (imdbID, title, year, details) VALUES (?,?,?,?)",
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT details FROM Movie WHERE imdbID=?", (imdbID,))
+            cached_movie = cursor.fetchone()
+            if cached_movie:
+                return json.loads(cached_movie[0])
+            else: 
+                url = "https://www.omdbapi.com/?i=" + movie["imdbID"] + "&apikey=" + apikey
+                response = requests.get(url)
+                if response.status_code == 200:
+                    moviedetails = response.json()
+                    conn.execute("BEGIN")
+                    cursor.execute("INSERT OR REPLACE INTO Movie (imdbID, title, year, details) VALUES (?,?,?,?)",
                                (imdbID, moviedetails["Title"], moviedetails["Year"],json.dumps(moviedetails)))
-                countries = [country.strip() for country in moviedetails["Country"].split(",")] if "Country" in moviedetails else []
-                #print(f"Countries for movie {moviedetails['Title']}: {countries}")
+                    countries = [country.strip() for country in moviedetails["Country"].split(",")] if "Country" in moviedetails else []
+                    #print(f"Countries for movie {moviedetails['Title']}: {countries}")
 
-                for country in countries:
-                    cursor.execute("INSERT OR IGNORE INTO MovieCountry (movie_id, country_name) VALUES (?, ?)", (imdbID, country))
-                    print(f"Inserted country '{country}' for movie '{imdbID}'")
-                conn.commit()
-                return moviedetails
-            else:
-                print("Failed to retrieve search results.")
-                return None
+                    for country in countries:
+                        cursor.execute("INSERT OR IGNORE INTO MovieCountry (movie_id, country_name) VALUES (?, ?)", (imdbID, country))
+                        #print(f"Inserted country '{country}' for movie '{imdbID}'")
+                    conn.commit()
+                    return moviedetails
+                else:
+                    print("Failed to retrieve search results.")
+                    return None
+        except Exception as e:
+            conn.rollback()
+            print(f"Error: {e}")
+            return None
     
     
 
@@ -77,25 +83,31 @@ def get_country_flag(fullname):
     if fullname in country_code_to_name:
         fullname = country_code_to_name[fullname]
     with sqlite3.connect("cache.db") as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT flag_url FROM Country WHERE country_name=?", (fullname,))
-        cached_flag = cursor.fetchone()
-        if cached_flag:
-            return cached_flag[0]
-        else:
-            url = f"https://restcountries.com/v3.1/name/{fullname}?fullText=true"
-            response = requests.get(url)
-            if response.status_code == 200:
-                country_data = response.json()
-                if country_data:
-                    flag_url = country_data[0].get("flags",{}).get("svg",None)
-                    if flag_url:
-                        #print(f"Flag URL for {fullname}: {flag_url}")  # Verifica la URL de la bandera
-                        cursor.execute("INSERT OR REPLACE INTO Country (country_name, flag_url) VALUES(?,?)",(fullname,flag_url))
-                        conn.commit()
-                        return flag_url
-    print(f"Failed to retrieve flag for country: {fullname}")
-    return None
+        try: 
+            cursor = conn.cursor()
+            cursor.execute("SELECT flag_url FROM Country WHERE country_name=?", (fullname,))
+            cached_flag = cursor.fetchone()
+            if cached_flag:
+                return cached_flag[0]
+            else:
+                url = f"https://restcountries.com/v3.1/name/{fullname}?fullText=true"
+                response = requests.get(url)
+                if response.status_code == 200:
+                    country_data = response.json()
+                    conn.execute("BEGIN")
+                    if country_data:
+                        flag_url = country_data[0].get("flags",{}).get("svg",None)
+                        if flag_url:
+                            #print(f"Flag URL for {fullname}: {flag_url}")  # Verifica la URL de la bandera
+                            cursor.execute("INSERT OR REPLACE INTO Country (country_name, flag_url) VALUES(?,?)",(fullname,flag_url))
+                            conn.commit()
+                            return flag_url
+                else:
+                    print(f"Failed to retrieve flag for country: {fullname}")
+        except Exception as e:
+            conn.rollback()
+            print(f"Error: {e}")
+            return None
 
 def merge_data_with_flags(filter, page):
     filmssearch = searchfilms(filter,page)
@@ -130,7 +142,7 @@ def merge_data_with_flags(filter, page):
                 "countries": countries
             }
             moviesdetailswithflags.append(moviewithflags)
-    print(moviesdetailswithflags)
+    #print(moviesdetailswithflags)
     return moviesdetailswithflags
 
 @app.route("/")
