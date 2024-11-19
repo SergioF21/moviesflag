@@ -104,6 +104,7 @@ def get_country_flag(fullname):
                             return flag_url
                 else:
                     print(f"Failed to retrieve flag for country: {fullname}")
+                    return None
         except Exception as e:
             conn.rollback()
             print(f"Error: {e}")
